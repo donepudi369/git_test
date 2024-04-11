@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Vis Network | Clustering</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
+    <style type="text/css">
+        #mynetwork {
+            width: 600px;
+            height: 400px;
+            border: 1px solid lightgray;
+        }
+    </style>
+</head>
+<body>
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    // Sample nodes with custom properties
+    var nodes = [
+        { id: 1, label: 'Node 1', group: 'Group A' },
+        { id: 2, label: 'Node 2', group: 'Group B' },
+        { id: 3, label: 'Node 3', group: 'Group A' },
+        { id: 4, label: 'Node 4', group: 'Group B' }
+        // Add more nodes with custom properties as needed
+    ];
+
+    // Sample edges
+    var edges = [
+        { from: 1, to: 2 },
+        { from: 1, to: 3 },
+        { from: 2, to: 4 }
+        // Add more edges as needed
+    ];
+
+    // Define predefined clusters based on custom property values
+    var clusters = {
+        'Group A': { id: 'Group A', label: 'Cluster Group A', color: 'orange' },
+        'Group B': { id: 'Group B', label: 'Cluster Group B', color: 'blue' }
+        // Define more clusters as needed
+    };
+
+    // Convert clusters object to an array
+    var clusterArray = Object.values(clusters);
+
+    // Create a network
+    var container = document.getElementById('mynetwork');
+    var data = {
+        nodes: nodes,
+        edges: edges,
+        clusters: clusterArray // Add predefined clusters to the data
+    };
+    var options = {
+        clustering: {
+            enabled: true,
+            clusterField: 'group' // Use the 'group' custom property for clustering
+        },
+        physics: {
+            enabled: false // Disable physics so that clusters do not move
+        }
+    };
+    var network = new vis.Network(container, data, options);
+
+    // Double-click event handler to expand clusters
+    network.on("doubleClick", function (params) {
+        var clusterId = params.nodes[0];
+        if (clusterId !== undefined && network.isCluster(clusterId)) {
+            network.openCluster(clusterId); // Expand the cluster
+        }
+    });
+</script>
+</body>
+</html>
