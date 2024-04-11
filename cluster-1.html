@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Vis Network | Other | Clustering</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"></script>
+    <style type="text/css">
+        #mynetwork {
+            width: 600px;
+            height: 600px;
+            border: 1px solid lightgray;
+        }
+        p {
+            max-width: 600px;
+        }
+        h4 {
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+<p>
+    Click any of the buttons below to cluster the network. On every push the
+    network will be reinitialized first. You can click on a cluster to open
+    it.
+</p>
+
+<input type="button" onclick="clusterByCustomProperty()" value="Cluster by custom property" />
+<br />
+
+<div id="mynetwork"></div>
+
+<script type="text/javascript">
+    // Sample nodes with custom properties
+    var nodes = [
+        { id: 1, label: 'Node 1', customProperty: 'Group A' },
+        { id: 2, label: 'Node 2', customProperty: 'Group B' },
+        { id: 3, label: 'Node 3', customProperty: 'Group A' },
+        { id: 4, label: 'Node 4', customProperty: 'Group B' }
+        // Add more nodes with custom properties as needed
+    ];
+
+    // Sample edges
+    var edges = [
+        { from: 1, to: 2 },
+        { from: 1, to: 3 },
+        { from: 2, to: 4 }
+        // Add more edges as needed
+    ];
+
+    // Create a network
+    var container = document.getElementById('mynetwork');
+    var data = {
+        nodes: nodes,
+        edges: edges
+    };
+    var options = {
+        layout: { randomSeed: 8 },
+        physics: { enabled: false } // Disable physics to prevent nodes from moving
+    };
+    var network = new vis.Network(container, data, options);
+
+    // Define predefined clusters based on custom property values
+    var clusters = {
+        'Group A': { id: 'Group A', label: 'Cluster Group A', borderWidth: 3, color: 'orange' },
+        'Group B': { id: 'Group B', label: 'Cluster Group B', borderWidth: 3, color: 'blue' }
+        // Define more clusters as needed
+    };
+
+    // Convert clusters object to an array
+    var clusterArray = Object.values(clusters);
+
+    // Set predefined clusters
+    network.setOptions({ clusters: clusterArray });
+
+    // Add a double click event handler for clusters
+    network.on("doubleClick", function (params) {
+        var clusterId = params.nodes[0]; // Get the ID of the cluster node
+
+        if (clusterId !== undefined && network.isCluster(clusterId)) { // Check if it's a cluster
+            network.openCluster(clusterId); // Expand the cluster
+        }
+    });
+
+    // Function to cluster nodes by custom property
+    function clusterByCustomProperty() {
+        network.setData(data);
+        var clusterOptionsByData = {
+            joinCondition: function (childOptions) {
+                return childOptions.customProperty == 'Group A'; // Define the condition to join nodes into a cluster
+            },
+            clusterNodeProperties: {
+                borderWidth: 3,
+                shape: 'database',
+                label: 'Cluster Group A'
+                // Define properties for the cluster
+            }
+        };
+        network.cluster(clusterOptionsByData);
+    }
+</script>
+</body>
+</html>
