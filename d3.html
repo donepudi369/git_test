@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D3.js Network with Connected Nodes Popup</title>
+  <style>
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
+    .node {
+      fill: #69b3a2;
+      stroke: #fff;
+      stroke-width: 1.5px;
+    }
+    .popup {
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      display: none;
+      width: 400px;
+      height: 300px;
+      z-index: 10;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+</head>
+<body>
+
+<div id="graph"></div>
+
+<!-- Popup container for connected nodes -->
+<div class="popup" id="popup">
+  <svg id="popupGraph" width="400" height="300"></svg>
+</div>
+
+<script>
+  // Data: nodes and links for the main network
+  var nodes = [
+    { id: 1, label: 'Node 1' },
+    { id: 2, label: 'Node 2' },
+    { id: 3, label: 'Node 3' },
+    { id: 4, label: 'Node 4' },
+    { id: 5, label: 'Node 5' }
+    // Add up to 150 nodes here...
+  ];
+
+  var links = [
+    { source: 1, target: 2 },
+    { source: 1, target: 3 },
+    { source: 2, target: 4 },
+    { source: 3, target: 5 },
+    { source: 4, target: 5 }
+    // Add more edges to connect nodes here...
+  ];
+
+  // Set up the SVG canvas for the main network
+  var width = 800;
+  var height = 600;
+  var svg = d3.select("#graph").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Set up the force simulation for the main graph
+  var simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(width / 2, height / 2));
+
+  // Draw the links (edges)
+  var link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("line")
+    .data(links)
+    .enter().append("line")
+    .attr("class", "link")
+    .attr("stroke-width", 2);
+
+  // Draw the nodes
+  var node = svg.append("g")
+    .attr("class", "nodes")
+    .selectAll("circle")
+    .data(nodes)
+    .enter().append("circle")
+    .attr("class", "node")
+    .attr("r", 10)
+    .call(drag(simulation));
+
+  // Add labels to the nodes
+  var label = svg.append("g")
+    .attr("class", "labels")
+    .selectAll("text")
+    .data(nodes)
+    .enter().append("text")
+    .attr("x", 12)
+    .attr("y", 3)
+    .text(d => d.label);
+
+  // Update positions of nodes and links on each tick of the simulation
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    label
+      .attr("x", d => d.x + 12)
+      .attr("y", d => d.y + 3);
+  });
+
+  // Drag behavior
+  function drag(simulation) {
+    return d3.drag()
+      .on("start", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on("drag", (event, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
+      })
+      .on("end", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      });
+  }
+
+  // Double-click event to show a new network diagram of connected nodes
+  node.on("dblclick", (event, d) => {
+    // Find the connected nodes
+    var connectedLinks = links.filter(link => link.source.id === d.id || link.target.id === d.id);
+    var connectedNodes = connectedLinks.map(link => {
+      return link.source.id === d.id ? link.target : link.source;
+    });
+
+    // Create new data for the popup graph (connected nodes and their links)
+    var popupNodes = [d, ...connectedNodes];
+    var popupLinks = connectedLinks;
+
+    // Display the connected nodes in the popup
+    showPopup(popupNodes, popupLinks, event.pageX, event.pageY);
+  });
+
+  // Function to display the popup with a new network diagram
+  function showPopup(nodes, links, x, y) {
+    var popup = d3.select("#popup");
+    var popupSvg = d3.select("#popupGraph");
+
+    // Clear any existing nodes and links in the popup
+    popupSvg.selectAll("*").remove();
+
+    // Set up force simulation for the popup graph
+    var popupSimulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(200, 150));
+
+    // Draw the links in the popup
+    var popupLink = popupSvg.append("g")
+      .selectAll("line")
+      .data(links)
+      .enter().append("line")
+      .attr("stroke-width", 2)
+      .attr("class", "link");
+
+    // Draw the nodes in the popup
+    var popupNode = popupSvg.append("g")
+      .selectAll("circle")
+      .data(nodes)
+      .enter().append("circle")
+      .attr("r", 10)
+      .attr("class", "node");
+
+    // Add labels to the popup nodes
+    var popupLabel = popupSvg.append("g")
+      .selectAll("text")
+      .data(nodes)
+      .enter().append("text")
+      .attr("x", 12)
+      .attr("y", 3)
+      .text(d => d.label);
+
+    // Update positions of nodes and links in the popup
+    popupSimulation.on("tick", () => {
+      popupLink
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      popupNode
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+      popupLabel
+        .attr("x", d => d.x + 12)
+        .attr("y", d => d.y + 3);
+    });
+
+    // Position and display the popup
+    popup.style("left", x + "px")
+      .style("top", y + "px")
+      .style("display", "block");
+  }
+
+  // Close the popup when clicking outside
+  d3.select("body").on("click", () => {
+    d3.select("#popup").style("display", "none");
+  });
+
+</script>
+
+</body>
+</html>
