@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D3.js Network with Search and Side Network</title>
+  <style>
+    .link {
+      stroke: #999;
+      stroke-opacity: 0.6;
+    }
+    .node {
+      fill: #69b3a2;
+      stroke: #fff;
+      stroke-width: 1.5px;
+    }
+    #sideGraph {
+      border: 1px solid #ccc;
+      width: 400px;
+      height: 300px;
+    }
+    .search-container {
+      margin-bottom: 20px;
+    }
+    .search-container input {
+      padding: 5px;
+      width: 200px;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+</head>
+<body>
+
+<!-- Search bar -->
+<div class="search-container">
+  <input type="text" id="search" placeholder="Search for a node">
+</div>
+
+<!-- Main graph container -->
+<div id="graph" style="float: left; width: 800px;"></div>
+
+<!-- Side graph container for connected nodes -->
+<div id="sideGraph" style="float: right;"></div>
+
+<script>
+  // Example data: nodes and links for the main network (you can add 150 nodes)
+  var nodes = Array.from({length: 150}, (v, i) => ({ id: i+1, label: `Node ${i+1}` }));
+  
+  var links = [];
+  for (let i = 1; i <= 150; i++) {
+    let target = Math.floor(Math.random() * 150) + 1;
+    if (target !== i) {
+      links.push({ source: i, target: target });
+    }
+  }
+
+  // Set up the SVG canvas for the main network
+  var width = 800;
+  var height = 600;
+  var svg = d3.select("#graph").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Set up the force simulation for the main graph
+  var simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(width / 2, height / 2));
+
+  // Draw the links (edges)
+  var link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("line")
+    .data(links)
+    .enter().append("line")
+    .attr("class", "link")
+    .attr("stroke-width", 2);
+
+  // Draw the nodes
+  var node = svg.append("g")
+    .attr("class", "nodes")
+    .selectAll("circle")
+    .data(nodes)
+    .enter().append("circle")
+    .attr("class", "node")
+    .attr("r", 10)
+    .call(drag(simulation));
+
+  // Add labels to the nodes
+  var label = svg.append("g")
+    .attr("class", "labels")
+    .selectAll("text")
+    .data(nodes)
+    .enter().append("text")
+    .attr("x", 12)
+    .attr("y", 3)
+    .text(d => d.label);
+
+  // Update positions of nodes and links on each tick of the simulation
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    label
+      .attr("x", d => d.x + 12)
+      .attr("y", d => d.y + 3);
+  });
+
+  // Drag behavior
+  function drag(simulation) {
+    return d3.drag()
+      .on("start", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on("drag", (event, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
+      })
+      .on("end", (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      });
+  }
+
+  // Double-click event to show connected nodes in the side graph
+  node.on("dblclick", (event, d) => {
+    // Find the connected nodes
+    var connectedLinks = links.filter(link => link.source.id === d.id || link.target.id === d.id);
+    var connectedNodes = connectedLinks.map(link => {
+      return link.source.id === d.id ? link.target : link.source;
+    });
+
+    // Create new data for the side graph (connected nodes and their links)
+    var sideNodes = [d, ...connectedNodes];
+    var sideLinks = connectedLinks;
+
+    // Display the connected nodes in the side graph
+    showSideGraph(sideNodes, sideLinks);
+  });
+
+  // Function to display the side network
+  function showSideGraph(nodes, links) {
+    var sideSvg = d3.select("#sideGraph").select("svg");
+
+    // Clear any existing nodes and links in the side graph
+    if (sideSvg.empty()) {
+      sideSvg = d3.select("#sideGraph").append("svg").attr("width", 400).attr("height", 300);
+    } else {
+      sideSvg.selectAll("*").remove();
+    }
+
+    var sideSimulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(200, 150));
+
+    // Draw the links in the side graph
+    var sideLink = sideSvg.append("g")
+      .selectAll("line")
+      .data(links)
+      .enter().append("line")
+      .attr("stroke-width", 2)
+      .attr("class", "link");
+
+    // Draw the nodes in the side graph
+    var sideNode = sideSvg.append("g")
+      .selectAll("circle")
+      .data(nodes)
+      .enter().append("circle")
+      .attr("r", 10)
+      .attr("class", "node");
+
+    // Add labels to the side nodes
+    var sideLabel = sideSvg.append("g")
+      .selectAll("text")
+      .data(nodes)
+      .enter().append("text")
+      .attr("x", 12)
+      .attr("y", 3)
+      .text(d => d.label);
+
+    // Update positions of nodes and links in the side graph
+    sideSimulation.on("tick", () => {
+      sideLink
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      sideNode
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+      sideLabel
+        .attr("x", d => d.x + 12)
+        .attr("y", d => d.y + 3);
+    });
+  }
+
+  // Search functionality with auto-suggest and focus
+  var searchInput = d3.select("#search");
+  searchInput.on("input", function() {
+    var searchText = this.value.toLowerCase();
+
+    // Filter matching nodes
+    var matchingNodes = nodes.filter(node => node.label.toLowerCase().includes(searchText));
+
+    // Focus on the first matching node
+    if (matchingNodes.length === 1) {
+      focusOnNode(matchingNodes[0]);
+    }
+  });
+
+  // Focus on the selected node
+  function focusOnNode(nodeData) {
+    simulation.alphaTarget(0.3).restart();
+    node.filter(d => d === nodeData)
+      .transition()
+      .duration(750)
+      .attr("r", 20)
+      .attr("fill", "orange");
+
+    // Zoom to the focused node (optional)
+    svg.transition().duration(750)
+      .call(
+        d3.zoom().transform,
+        d3.zoomIdentity.translate(width / 2 - nodeData.x, height / 2 - nodeData.y)
+      );
+  }
+
+</script>
+
+</body>
+</html>
